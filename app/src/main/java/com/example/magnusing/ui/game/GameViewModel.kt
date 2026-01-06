@@ -24,14 +24,11 @@ class GameViewModel : ViewModel() {
 
         val pieceAtTap = board[index]
 
+
         // CASE 1: Nothing selected yet -> select your piece and compute legal targets
         if (selected == null) {
             if (pieceAtTap != null && pieceAtTap.color == sideToMove) {
-                val targets = when (pieceAtTap.type) {
-                    PieceType.Knight -> knightTargets(index, board, sideToMove)
-                    else -> emptySet() // for now, only knights have legal moves
-                }
-
+                val targets = targetsForPiece(index, pieceAtTap, board)
                 _uiState.value = current.copy(
                     selectedSquare = index,
                     legalTargets = targets
@@ -60,10 +57,7 @@ class GameViewModel : ViewModel() {
 
         // If user taps another of their own pieces, switch selection + recompute targets
         if (pieceAtTap != null && pieceAtTap.color == sideToMove) {
-            val targets = when (pieceAtTap.type) {
-                PieceType.Knight -> knightTargets(index, board, sideToMove)
-                else -> emptySet()
-            }
+            val targets = targetsForPiece(index, pieceAtTap, board)
             _uiState.value = current.copy(
                 selectedSquare = index,
                 legalTargets = targets
