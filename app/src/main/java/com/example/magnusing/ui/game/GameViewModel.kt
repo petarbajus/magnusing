@@ -7,7 +7,8 @@ import kotlinx.coroutines.flow.StateFlow
 data class GameUiState(
     val selectedSquare: Int? = null,
     val board: List<Piece?> = startingBoard(),
-    val sideToMove: PieceColor = PieceColor.White
+    val sideToMove: PieceColor = PieceColor.White,
+    val legalTargets: Set<Int> = emptySet()
 )
 
 class GameViewModel : ViewModel() {
@@ -19,56 +20,73 @@ class GameViewModel : ViewModel() {
         val selected = current.selectedSquare
         val board = current.board
         val sideToMove = current.sideToMove
+        val legalTargets = current.legalTargets
 
         val pieceAtTap = board[index]
 
-        // CASE 1: Nothing selected yet
+        // CASE 1: Nothing selected yet -> select your piece and compute legal targets
         if (selected == null) {
-            // Only allow selecting a piece of the side whose turn it is
             if (pieceAtTap != null && pieceAtTap.color == sideToMove) {
-                _uiState.value = current.copy(selectedSquare = index)
+                val targets = when (pieceAtTap.type) {
+                    PieceType.Knight -> knightTargets(index, board, sideToMove)
+                    else -> emptySet() // for now, only knights have legal moves
+                }
+
+                _uiState.value = current.copy(
+                    selectedSquare = index,
+                    legalTargets = targets
+                )
             }
             return
         }
 
-        // CASE 2: Tapped the same square → deselect
+        // CASE 2: Tap same square -> deselect and clear targets
         if (selected == index) {
-            _uiState.value = current.copy(selectedSquare = null)
+            _uiState.value = current.copy(
+                selectedSquare = null,
+                legalTargets = emptySet()
+            )
             return
         }
 
         val movingPiece = board[selected]
-
-        // Safety check (should not normally happen)
         if (movingPiece == null) {
-            _uiState.value = current.copy(selectedSquare = null)
+            _uiState.value = current.copy(
+                selectedSquare = null,
+                legalTargets = emptySet()
+            )
             return
         }
 
-        // Extra safety: selected piece must belong to sideToMove
-        if (movingPiece.color != sideToMove) {
-            _uiState.value = current.copy(selectedSquare = null)
-            return
-        }
-
-        // CASE 3: Tapped another piece of the same side → change selection
+        // If user taps another of their own pieces, switch selection + recompute targets
         if (pieceAtTap != null && pieceAtTap.color == sideToMove) {
-            _uiState.value = current.copy(selectedSquare = index)
+            val targets = when (pieceAtTap.type) {
+                PieceType.Knight -> knightTargets(index, board, sideToMove)
+                else -> emptySet()
+            }
+            _uiState.value = current.copy(
+                selectedSquare = index,
+                legalTargets = targets
+            )
             return
         }
 
-        // CASE 4: Move (still illegal moves allowed)
+        // CASE 3: Attempt move -> only allow if target is legal
+        if (index !in legalTargets) {
+            // illegal tap: do nothing (or you can clear selection; I prefer do nothing)
+            return
+        }
+
         val newBoard = board.toMutableList()
         newBoard[selected] = null
-        newBoard[index] = movingPiece // capture by overwrite
+        newBoard[index] = movingPiece
 
-        val nextSide =
-            if (sideToMove == PieceColor.White) PieceColor.Black
-            else PieceColor.White
+        val nextSide = if (sideToMove == PieceColor.White) PieceColor.Black else PieceColor.White
 
         _uiState.value = current.copy(
             board = newBoard,
             selectedSquare = null,
+            legalTargets = emptySet(),
             sideToMove = nextSide
         )
     }
@@ -77,7 +95,8 @@ class GameViewModel : ViewModel() {
         _uiState.value = GameUiState(
             selectedSquare = null,
             board = startingBoard(),
-            sideToMove = PieceColor.White
+            sideToMove = PieceColor.White,
+            legalTargets = emptySet()
         )
     }
 }

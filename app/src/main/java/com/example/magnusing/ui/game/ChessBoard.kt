@@ -6,15 +6,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 
 @Composable
 fun ChessBoard(
     board: List<Piece?>,
     selectedSquare: Int?,
+    legalTargets: Set<Int>,
     onSquareClick: (index: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -44,6 +48,30 @@ fun ChessBoard(
                         contentAlignment = Alignment.Center
                     ) {
                         val piece = board[index]
+                        val isTarget = index in legalTargets
+
+                        if (isTarget && piece == null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x55000000))
+                            )
+                        }
+
+                        if (isTarget && piece != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .border(
+                                        width = 2.dp,
+                                        color = Color(0x88000000),
+                                        shape = CircleShape
+                                    )
+                            )
+                        }
+
                         if (piece != null) {
                             Text(
                                 text = pieceToUnicode(piece),

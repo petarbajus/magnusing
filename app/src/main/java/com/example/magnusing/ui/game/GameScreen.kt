@@ -43,6 +43,7 @@ fun GameScreen(
             ChessBoard(
                 board = state.board,
                 selectedSquare = state.selectedSquare,
+                legalTargets = state.legalTargets,
                 onSquareClick = { vm.onSquareTapped(it) }
             )
         }
