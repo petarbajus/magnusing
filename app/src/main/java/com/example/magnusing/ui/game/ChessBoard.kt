@@ -13,9 +13,9 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import com.example.magnusing.ui.game.logic.model.Piece
-import com.example.magnusing.ui.game.logic.model.PieceColor
-import com.example.magnusing.ui.game.logic.model.PieceType
+import com.example.magnusing.ui.game.model.Piece
+import com.example.magnusing.ui.game.model.PieceColor
+import com.example.magnusing.ui.game.model.PieceType
 
 @Composable
 fun ChessBoard(

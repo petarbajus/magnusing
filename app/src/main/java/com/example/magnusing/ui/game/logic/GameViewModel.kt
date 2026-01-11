@@ -1,87 +1,58 @@
 package com.example.magnusing.ui.game.logic
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
-import com.example.magnusing.ui.game.logic.model.Piece
-import com.example.magnusing.ui.game.logic.model.PieceColor
+import com.example.magnusing.ui.game.model.CastlingRights
+import com.example.magnusing.ui.game.model.GameUiState
+import com.example.magnusing.ui.game.model.Piece
+import com.example.magnusing.ui.game.model.PieceColor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 enum class GameStatus { Playing, Check, Checkmate, Stalemate }
 
-data class GameUiState(
-    val selectedSquare: Int? = null,
-    val board: List<Piece?> = startingBoard(),
-    val sideToMove: PieceColor = PieceColor.White,
-
-    // UI helpers
-    val legalTargets: Set<Int> = emptySet(),
-    val targetMoves: Map<Int, Move> = emptyMap(),
-
-    // Game status
-    val status: GameStatus = GameStatus.Playing,
-
-    // Special-rule state
-    val castlingRights: CastlingRights = CastlingRights(),
-    val enPassantTarget: Int? = null
-)
-
 class GameViewModel : ViewModel() {
-
-    private companion object {
-        const val TAG = "GameViewModel"
-    }
 
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState
 
-    fun onSquareTapped(index: Int) {
-        val current = _uiState.value
+    fun onSquareTapped(currentlySelectedSquare: Int) {
 
-        // No moves after game end
-        if (current.status == GameStatus.Checkmate || current.status == GameStatus.Stalemate) return
+        val currentState = _uiState.value
+        
+        if (hasGameEnded(currentState.gameStatus)) 
+            return
 
-        val selected = current.selectedSquare
-        val board = current.board
-        val sideToMove = current.sideToMove
-        val pieceAtTap = board[index]
-
-        // CASE 1: Nothing selected yet -> select your piece and compute LEGAL moves (including EP/castling)
-        if (selected == null) {
+        val previouslySelectedSquare = currentState.selectedSquare
+        val board = currentState.board
+        val sideToMove = currentState.sideToMove
+        val pieceAtTap = board[currentlySelectedSquare]
+        
+        if (previouslySelectedSquare == null) {
             if (pieceAtTap != null && pieceAtTap.color == sideToMove) {
-                val moves = legalMovesForPiece(
-                    from = index,
-                    piece = pieceAtTap,
-                    board = board,
-                    sideToMove = sideToMove,
-                    castlingRights = current.castlingRights,
-                    enPassantTarget = current.enPassantTarget
-                )
-
-                _uiState.value = current.copy(
-                    selectedSquare = index,
-                    legalTargets = moves.map { it.to }.toSet(),
-                    targetMoves = moves.associateBy { it.to }
+                storeLegalMovesAndSelectedSquare(
+                    currentlySelectedSquare,
+                    pieceAtTap,
+                    board,
+                    sideToMove,
+                    currentState.castlingRights,
+                    currentState.enPassantTargetSquare
                 )
             }
             return
         }
 
-        // CASE 2: Tap same square -> deselect
-        if (selected == index) {
-            _uiState.value = current.copy(
+        if (previouslySelectedSquare == currentlySelectedSquare) {
+            _uiState.value = currentState.copy(
                 selectedSquare = null,
-                legalTargets = emptySet(),
                 targetMoves = emptyMap()
             )
             return
         }
 
-        val movingPiece = board[selected]
+        val movingPiece = board[previouslySelectedSquare]
         if (movingPiece == null) {
-            _uiState.value = current.copy(
+            _uiState.value = currentState.copy(
                 selectedSquare = null,
-                legalTargets = emptySet(),
                 targetMoves = emptyMap()
             )
             return
@@ -89,38 +60,32 @@ class GameViewModel : ViewModel() {
 
         // CASE 3: Tap another own piece -> switch selection + recompute legal moves
         if (pieceAtTap != null && pieceAtTap.color == sideToMove) {
-            val moves = legalMovesForPiece(
-                from = index,
-                piece = pieceAtTap,
-                board = board,
-                sideToMove = sideToMove,
-                castlingRights = current.castlingRights,
-                enPassantTarget = current.enPassantTarget
-            )
-
-            _uiState.value = current.copy(
-                selectedSquare = index,
-                legalTargets = moves.map { it.to }.toSet(),
-                targetMoves = moves.associateBy { it.to }
+            storeLegalMovesAndSelectedSquare(
+                currentlySelectedSquare,
+                pieceAtTap,
+                board,
+                sideToMove,
+                currentState.castlingRights,
+                currentState.enPassantTargetSquare
             )
             return
         }
 
         // CASE 4: Attempt move -> must be legal and present in targetMoves
-        val move = current.targetMoves[index] ?: return
+        val move = currentState.targetMoves[currentlySelectedSquare] ?: return
 
         val apply = applyMoveWithRules(
             board = board,
             move = move,
             sideToMove = sideToMove,
-            castlingRights = current.castlingRights,
-            enPassantTarget = current.enPassantTarget
+            castlingRights = currentState.castlingRights,
+            enPassantTargetSquare = currentState.enPassantTargetSquare
         )
 
         val nextSide = if (sideToMove == PieceColor.White) PieceColor.Black else PieceColor.White
         val nextBoard = apply.board
 
-        // Determine game status for the side that is about to move
+        // Determine game gameStatus for the side that is about to move
         val inCheck = isInCheck(nextBoard, nextSide)
 
         // IMPORTANT: hasAnyLegalMove must consider castling rights + ep target for the next player
@@ -128,29 +93,24 @@ class GameViewModel : ViewModel() {
             board = nextBoard,
             sideToMove = nextSide,
             castlingRights = apply.castlingRights,
-            enPassantTarget = apply.enPassantTarget
+            enPassantTargetSquare = apply.enPassantTargetSquare
         )
 
-        val status = when {
+        val gameStatus = when {
             !anyMoves && inCheck -> GameStatus.Checkmate
             !anyMoves && !inCheck -> GameStatus.Stalemate
             inCheck -> GameStatus.Check
             else -> GameStatus.Playing
         }
 
-        if (status != GameStatus.Playing) {
-            Log.d(TAG, "Game status: $status (side to move: $nextSide)")
-        }
-
-        _uiState.value = current.copy(
+        _uiState.value = currentState.copy(
             board = nextBoard,
             selectedSquare = null,
-            legalTargets = emptySet(),
             targetMoves = emptyMap(),
             sideToMove = nextSide,
             castlingRights = apply.castlingRights,
-            enPassantTarget = apply.enPassantTarget,
-            status = status
+            enPassantTargetSquare = apply.enPassantTargetSquare,
+            gameStatus = gameStatus
         )
     }
 
@@ -159,11 +119,38 @@ class GameViewModel : ViewModel() {
             selectedSquare = null,
             board = startingBoard(),
             sideToMove = PieceColor.White,
-            legalTargets = emptySet(),
             targetMoves = emptyMap(),
-            status = GameStatus.Playing,
+            gameStatus = GameStatus.Playing,
             castlingRights = CastlingRights(),
-            enPassantTarget = null
+            enPassantTargetSquare = null
         )
+    }
+    private fun storeLegalMovesAndSelectedSquare(
+        from: Int,
+        piece: Piece,
+        board: List<Piece?>,
+        sideToMove: PieceColor,
+        castlingRights: CastlingRights,
+        enPassantTargetSquare: Int?
+    ) {
+        val moves = legalMovesForPiece(
+            from = from,
+            piece = piece,
+            board = board,
+            sideToMove = sideToMove,
+            castlingRights = castlingRights,
+            enPassantTargetSquare = enPassantTargetSquare
+        )
+
+        val currentState = _uiState.value
+
+        _uiState.value = currentState.copy(
+            selectedSquare = from,
+            targetMoves = moves.associateBy { it.to }
+        )
+    }
+    private fun hasGameEnded(gameStatus: GameStatus): Boolean {
+        return gameStatus == GameStatus.Checkmate ||
+                gameStatus == GameStatus.Stalemate
     }
 }

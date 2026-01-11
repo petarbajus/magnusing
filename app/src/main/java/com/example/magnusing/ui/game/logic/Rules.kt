@@ -1,58 +1,23 @@
 package com.example.magnusing.ui.game.logic
 
-import com.example.magnusing.ui.game.logic.model.Piece
-import com.example.magnusing.ui.game.logic.model.PieceColor
-import com.example.magnusing.ui.game.logic.model.PieceType
+import com.example.magnusing.ui.game.model.ApplyResult
+import com.example.magnusing.ui.game.model.CastlingRights
+import com.example.magnusing.ui.game.model.Piece
+import com.example.magnusing.ui.game.model.PieceColor
+import com.example.magnusing.ui.game.model.PieceType
+import com.example.magnusing.ui.game.model.Move
 import kotlin.collections.listOf
 import kotlin.math.abs
-
-// ----------------------------
-// Models
-// ----------------------------
-
-data class CastlingRights(
-    val whiteKingSide: Boolean = true,
-    val whiteQueenSide: Boolean = true,
-    val blackKingSide: Boolean = true,
-    val blackQueenSide: Boolean = true
-)
-
-data class Move(
-    val from: Int,
-    val to: Int,
-    val isEnPassant: Boolean = false,
-    val isCastleKingSide: Boolean = false,
-    val isCastleQueenSide: Boolean = false
-)
-
-data class ApplyResult(
-    val board: List<Piece?>,
-    val castlingRights: CastlingRights,
-    val enPassantTarget: Int?
-)
-
-// ----------------------------
-// Board helpers
-// ----------------------------
-
-private fun rowOf(i: Int) = i / 8
-private fun colOf(i: Int) = i % 8
-private fun idx(r: Int, c: Int) = r * 8 + c
-private fun inBounds(r: Int, c: Int) = r in 0..7 && c in 0..7
-
-// ----------------------------
-// Apply move (with special rules)
-// ----------------------------
 
 fun applyMoveWithRules(
     board: List<Piece?>,
     move: Move,
     sideToMove: PieceColor,
     castlingRights: CastlingRights,
-    enPassantTarget: Int?
+    enPassantTargetSquare: Int?
 ): ApplyResult {
     val newBoard = board.toMutableList()
-    val piece = newBoard[move.from] ?: return ApplyResult(board, castlingRights, enPassantTarget)
+    val piece = newBoard[move.from] ?: return ApplyResult(board, castlingRights, enPassantTargetSquare)
 
     // EP target is valid only for one ply; clear by default and set only on pawn double move.
     var nextEp: Int? = null
@@ -162,10 +127,6 @@ fun applyMoveWithRules(
     return ApplyResult(newBoard, nextRights, nextEp)
 }
 
-// ----------------------------
-// Attack / check detection
-// ----------------------------
-
 private fun findKingSquare(board: List<Piece?>, color: PieceColor): Int? {
     for (i in 0 until 64) {
         val p = board[i] ?: continue
@@ -241,20 +202,16 @@ fun isInCheck(board: List<Piece?>, color: PieceColor): Boolean {
     return isSquareAttacked(board, kingSq, attacker)
 }
 
-// ----------------------------
-// Pseudo-move generation (includes EP/castling)
-// ----------------------------
-
 private fun pseudoMovesForPiece(
     from: Int,
     piece: Piece,
     board: List<Piece?>,
     sideToMove: PieceColor,
     castlingRights: CastlingRights,
-    enPassantTarget: Int?
+    enPassantTargetSquare: Int?
 ): List<Move> {
     return when (piece.type) {
-        PieceType.Pawn -> pawnPseudoMoves(from, piece.color, board, enPassantTarget)
+        PieceType.Pawn -> pawnPseudoMoves(from, piece.color, board, enPassantTargetSquare)
         PieceType.Knight -> knightPseudoMoves(from, piece.color, board)
         PieceType.Bishop -> slidingPseudoMoves(from, piece.color, board, listOf(-1 to -1, -1 to 1, 1 to -1, 1 to 1))
         PieceType.Rook -> slidingPseudoMoves(from, piece.color, board, listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1))
@@ -401,19 +358,15 @@ private fun pawnPseudoMoves(from: Int, side: PieceColor, board: List<Piece?>, ep
     return out
 }
 
-// ----------------------------
-// Legal moves (filters pseudo by king safety + castling-through-check)
-// ----------------------------
-
 fun legalMovesForPiece(
     from: Int,
     piece: Piece,
     board: List<Piece?>,
     sideToMove: PieceColor,
     castlingRights: CastlingRights,
-    enPassantTarget: Int?
+    enPassantTargetSquare: Int?
 ): List<Move> {
-    val pseudo = pseudoMovesForPiece(from, piece, board, sideToMove, castlingRights, enPassantTarget)
+    val pseudo = pseudoMovesForPiece(from, piece, board, sideToMove, castlingRights, enPassantTargetSquare)
     val legal = mutableListOf<Move>()
 
     val opponent = if (sideToMove == PieceColor.White) PieceColor.Black else PieceColor.White
@@ -441,7 +394,7 @@ fun legalMovesForPiece(
             move = m,
             sideToMove = sideToMove,
             castlingRights = castlingRights,
-            enPassantTarget = enPassantTarget
+            enPassantTargetSquare = enPassantTargetSquare
         )
 
         // Must not leave your king in check
@@ -457,12 +410,12 @@ fun hasAnyLegalMove(
     board: List<Piece?>,
     sideToMove: PieceColor,
     castlingRights: CastlingRights,
-    enPassantTarget: Int?
+    enPassantTargetSquare: Int?
 ): Boolean {
     for (from in 0 until 64) {
         val piece = board[from] ?: continue
         if (piece.color != sideToMove) continue
-        if (legalMovesForPiece(from, piece, board, sideToMove, castlingRights, enPassantTarget).isNotEmpty()) {
+        if (legalMovesForPiece(from, piece, board, sideToMove, castlingRights, enPassantTargetSquare).isNotEmpty()) {
             return true
         }
     }
