@@ -26,7 +26,8 @@ class GameViewModel : ViewModel() {
         val board = currentState.board
         val sideToMove = currentState.sideToMove
         val pieceAtTap = board[currentlySelectedSquare]
-        
+
+        // CASE 1 : No piece selected -> select one
         if (previouslySelectedSquare == null) {
             if (pieceAtTap != null && pieceAtTap.color == sideToMove) {
                 storeLegalMovesAndSelectedSquare(
@@ -41,6 +42,7 @@ class GameViewModel : ViewModel() {
             return
         }
 
+        // CASE 2 : Same piece selected -> deselect
         if (previouslySelectedSquare == currentlySelectedSquare) {
             _uiState.value = currentState.copy(
                 selectedSquare = null,
@@ -49,6 +51,7 @@ class GameViewModel : ViewModel() {
             return
         }
 
+        // Safety check
         val movingPiece = board[previouslySelectedSquare]
         if (movingPiece == null) {
             _uiState.value = currentState.copy(
@@ -74,7 +77,7 @@ class GameViewModel : ViewModel() {
         // CASE 4: Attempt move -> must be legal and present in targetMoves
         val move = currentState.targetMoves[currentlySelectedSquare] ?: return
 
-        val apply = applyMoveWithRules(
+        val apply = applyMove(
             board = board,
             move = move,
             sideToMove = sideToMove,
@@ -82,16 +85,16 @@ class GameViewModel : ViewModel() {
             enPassantTargetSquare = currentState.enPassantTargetSquare
         )
 
-        val nextSide = if (sideToMove == PieceColor.White) PieceColor.Black else PieceColor.White
+        val nextSideToPlay = if (sideToMove == PieceColor.White) PieceColor.Black else PieceColor.White
         val nextBoard = apply.board
 
         // Determine game gameStatus for the side that is about to move
-        val inCheck = isInCheck(nextBoard, nextSide)
+        val inCheck = isInCheck(nextBoard, nextSideToPlay)
 
         // IMPORTANT: hasAnyLegalMove must consider castling rights + ep target for the next player
         val anyMoves = hasAnyLegalMove(
             board = nextBoard,
-            sideToMove = nextSide,
+            sideToMove = nextSideToPlay,
             castlingRights = apply.castlingRights,
             enPassantTargetSquare = apply.enPassantTargetSquare
         )
@@ -107,7 +110,7 @@ class GameViewModel : ViewModel() {
             board = nextBoard,
             selectedSquare = null,
             targetMoves = emptyMap(),
-            sideToMove = nextSide,
+            sideToMove = nextSideToPlay,
             castlingRights = apply.castlingRights,
             enPassantTargetSquare = apply.enPassantTargetSquare,
             gameStatus = gameStatus

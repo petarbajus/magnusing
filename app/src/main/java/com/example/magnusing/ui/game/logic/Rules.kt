@@ -1,6 +1,6 @@
 package com.example.magnusing.ui.game.logic
 
-import com.example.magnusing.ui.game.model.ApplyResult
+import com.example.magnusing.ui.game.model.MoveResult
 import com.example.magnusing.ui.game.model.CastlingRights
 import com.example.magnusing.ui.game.model.Piece
 import com.example.magnusing.ui.game.model.PieceColor
@@ -9,19 +9,18 @@ import com.example.magnusing.ui.game.model.Move
 import kotlin.collections.listOf
 import kotlin.math.abs
 
-fun applyMoveWithRules(
+fun applyMove(
     board: List<Piece?>,
     move: Move,
     sideToMove: PieceColor,
     castlingRights: CastlingRights,
     enPassantTargetSquare: Int?
-): ApplyResult {
+): MoveResult {
     val newBoard = board.toMutableList()
-    val piece = newBoard[move.from] ?: return ApplyResult(board, castlingRights, enPassantTargetSquare)
+    val piece = newBoard[move.from] ?: return MoveResult(board, castlingRights, enPassantTargetSquare)
 
-    // EP target is valid only for one ply; clear by default and set only on pawn double move.
-    var nextEp: Int? = null
-    var nextRights = castlingRights
+    var nextEnPassantTargetSquare: Int? = null
+    var nextCastlingRights = castlingRights
 
     val capturedPiece = newBoard[move.to]
 
@@ -44,7 +43,7 @@ fun applyMoveWithRules(
                 newBoard[rookTo] = newBoard[rookFrom]
                 newBoard[rookFrom] = null
             }
-            nextRights = nextRights.copy(whiteKingSide = false, whiteQueenSide = false)
+            nextCastlingRights = nextCastlingRights.copy(whiteKingSide = false, whiteQueenSide = false)
         } else {
             if (move.isCastleKingSide) {
                 // e8->g8, rook h8->f8
@@ -59,10 +58,10 @@ fun applyMoveWithRules(
                 newBoard[rookTo] = newBoard[rookFrom]
                 newBoard[rookFrom] = null
             }
-            nextRights = nextRights.copy(blackKingSide = false, blackQueenSide = false)
+            nextCastlingRights = nextCastlingRights.copy(blackKingSide = false, blackQueenSide = false)
         }
 
-        return ApplyResult(newBoard, nextRights, nextEp)
+        return MoveResult(newBoard, nextCastlingRights, nextEnPassantTargetSquare)
     }
 
     // EN PASSANT: pawn moves to empty ep square, captures pawn behind
@@ -70,15 +69,14 @@ fun applyMoveWithRules(
         newBoard[move.from] = null
         newBoard[move.to] = piece
 
-        val toR = rowOf(move.to)
-        val toC = colOf(move.to)
+        val destinationRow = rowOf(move.to)
+        val destinationCol = colOf(move.to)
         val capturedPawnSquare =
-            if (sideToMove == PieceColor.White) idx(toR + 1, toC) else idx(toR - 1, toC)
-        if (capturedPawnSquare in 0..63) {
-            newBoard[capturedPawnSquare] = null
-        }
+            if (sideToMove == PieceColor.White) idx(destinationRow + 1, destinationCol) else idx(destinationRow - 1, destinationCol)
 
-        return ApplyResult(newBoard, nextRights, nextEp)
+        newBoard[capturedPawnSquare] = null
+
+        return MoveResult(newBoard, nextCastlingRights, nextEnPassantTargetSquare)
     }
 
     // Normal move (including normal captures)
@@ -87,99 +85,99 @@ fun applyMoveWithRules(
 
     // Update castling rights if king moved
     if (piece.type == PieceType.King) {
-        nextRights = if (sideToMove == PieceColor.White) {
-            nextRights.copy(whiteKingSide = false, whiteQueenSide = false)
+        nextCastlingRights = if (sideToMove == PieceColor.White) {
+            nextCastlingRights.copy(whiteKingSide = false, whiteQueenSide = false)
         } else {
-            nextRights.copy(blackKingSide = false, blackQueenSide = false)
+            nextCastlingRights.copy(blackKingSide = false, blackQueenSide = false)
         }
     }
 
     // Update castling rights if rook moved from original squares
     if (piece.type == PieceType.Rook) {
         when (move.from) {
-            idx(7, 0) -> nextRights = nextRights.copy(whiteQueenSide = false)
-            idx(7, 7) -> nextRights = nextRights.copy(whiteKingSide = false)
-            idx(0, 0) -> nextRights = nextRights.copy(blackQueenSide = false)
-            idx(0, 7) -> nextRights = nextRights.copy(blackKingSide = false)
+            idx(7, 0) -> nextCastlingRights = nextCastlingRights.copy(whiteQueenSide = false)
+            idx(7, 7) -> nextCastlingRights = nextCastlingRights.copy(whiteKingSide = false)
+            idx(0, 0) -> nextCastlingRights = nextCastlingRights.copy(blackQueenSide = false)
+            idx(0, 7) -> nextCastlingRights = nextCastlingRights.copy(blackKingSide = false)
         }
     }
 
     // Update castling rights if a rook is captured on its original square
     if (capturedPiece?.type == PieceType.Rook) {
         when (move.to) {
-            idx(7, 0) -> nextRights = nextRights.copy(whiteQueenSide = false)
-            idx(7, 7) -> nextRights = nextRights.copy(whiteKingSide = false)
-            idx(0, 0) -> nextRights = nextRights.copy(blackQueenSide = false)
-            idx(0, 7) -> nextRights = nextRights.copy(blackKingSide = false)
+            idx(7, 0) -> nextCastlingRights = nextCastlingRights.copy(whiteQueenSide = false)
+            idx(7, 7) -> nextCastlingRights = nextCastlingRights.copy(whiteKingSide = false)
+            idx(0, 0) -> nextCastlingRights = nextCastlingRights.copy(blackQueenSide = false)
+            idx(0, 7) -> nextCastlingRights = nextCastlingRights.copy(blackKingSide = false)
         }
     }
 
     // Set en passant target if pawn moved two squares
     if (piece.type == PieceType.Pawn) {
-        val fromR = rowOf(move.from)
-        val toR = rowOf(move.to)
-        if (abs(toR - fromR) == 2) {
-            val midR = (fromR + toR) / 2
-            nextEp = idx(midR, colOf(move.from))
+        val startRow = rowOf(move.from)
+        val destinationRow = rowOf(move.to)
+        if (abs(destinationRow - startRow) == 2) {
+            val middleRow = (startRow + destinationRow) / 2
+            nextEnPassantTargetSquare = idx(middleRow, colOf(move.from))
         }
     }
 
-    return ApplyResult(newBoard, nextRights, nextEp)
+    return MoveResult(newBoard, nextCastlingRights, nextEnPassantTargetSquare)
 }
 
 private fun findKingSquare(board: List<Piece?>, color: PieceColor): Int? {
     for (i in 0 until 64) {
-        val p = board[i] ?: continue
-        if (p.color == color && p.type == PieceType.King) return i
+        val piece = board[i] ?: continue
+        if (piece.color == color && piece.type == PieceType.King) return i
     }
     return null
 }
 
-private fun attacksKnight(from: Int, to: Int): Boolean {
-    val dr = abs(rowOf(from) - rowOf(to))
-    val dc = abs(colOf(from) - colOf(to))
-    return (dr == 2 && dc == 1) || (dr == 1 && dc == 2)
+private fun isKnightAttackingSquare(attackingSquare: Int, attackedSquare: Int): Boolean {
+    val deltaRow = abs(rowOf(attackingSquare) - rowOf(attackedSquare))
+    val deltaCol = abs(colOf(attackingSquare) - colOf(attackedSquare))
+    return (deltaRow == 2 && deltaCol == 1) || (deltaRow == 1 && deltaCol == 2)
 }
 
-private fun attacksKing(from: Int, to: Int): Boolean {
-    val dr = abs(rowOf(from) - rowOf(to))
-    val dc = abs(colOf(from) - colOf(to))
-    return dr <= 1 && dc <= 1 && (dr + dc) != 0
+private fun isKingAttackingSquare(attackingSquare: Int, attackedSquare: Int): Boolean {
+    val deltaRow = abs(rowOf(attackingSquare) - rowOf(attackedSquare))
+    val deltaCol = abs(colOf(attackingSquare) - colOf(attackedSquare))
+    return deltaRow <= 1 && deltaCol <= 1 && (deltaRow + deltaCol) != 0
 }
 
-private fun rayAttacks(board: List<Piece?>, from: Int, to: Int, dr: Int, dc: Int): Boolean {
-    var r = rowOf(from) + dr
-    var c = colOf(from) + dc
-    while (inBounds(r, c)) {
-        val i = idx(r, c)
-        if (i == to) return true
-        if (board[i] != null) return false
-        r += dr
-        c += dc
+private fun isSquareBeingRayAttacked(board: List<Piece?>, attackingSquare: Int, attackedSquare: Int, deltaRow: Int, deltaCol: Int): Boolean {
+    var currentRow = rowOf(attackingSquare) + deltaRow
+    var currentCol = colOf(attackingSquare) + deltaCol
+    while (inBounds(currentRow, currentCol)) {
+        val currentSquareIndex = idx(currentRow, currentCol)
+        if (currentSquareIndex == attackedSquare) return true
+        if (board[currentSquareIndex] != null) return false
+        currentRow += deltaRow
+        currentCol += deltaCol
     }
     return false
 }
 
-fun isSquareAttacked(board: List<Piece?>, square: Int, by: PieceColor): Boolean {
-    for (i in 0 until 64) {
-        val p = board[i] ?: continue
-        if (p.color != by) continue
+fun isSquareAttacked(board: List<Piece?>, attackedSquare: Int, by: PieceColor): Boolean {
+    for (attackingSquare in 0 until 64) {
+        val attackingPiece = board[attackingSquare] ?: continue
+        if (attackingPiece.color != by) continue
 
-        when (p.type) {
-            PieceType.Knight -> if (attacksKnight(i, square)) return true
-            PieceType.King -> if (attacksKing(i, square)) return true
+        when (attackingPiece.type) {
+            PieceType.Knight -> if (isKnightAttackingSquare(attackingSquare, attackedSquare)) return true
+            PieceType.King -> if (isKingAttackingSquare(attackingSquare, attackedSquare)) return true
             PieceType.Pawn -> {
-                val r = rowOf(i)
-                val c = colOf(i)
+                val currentRow = rowOf(attackingSquare)
+                val currentCol = colOf(attackingSquare)
                 val dir = if (by == PieceColor.White) -1 else 1
-                for (dc in listOf(-1, 1)) {
-                    val rr = r + dir
-                    val cc = c + dc
-                    if (inBounds(rr, cc) && idx(rr, cc) == square) return true
+                for (deltaCol in listOf(-1, 1)) {
+                    val newRow = currentRow + dir
+                    val newCol = currentCol + deltaCol
+                    if (inBounds(newRow, newCol) && idx(newRow, newCol) == attackedSquare) return true
                 }
             }
             PieceType.Bishop, PieceType.Rook, PieceType.Queen -> {
-                val dirs = when (p.type) {
+                val dirs = when (attackingPiece.type) {
                     PieceType.Bishop -> listOf(-1 to -1, -1 to 1, 1 to -1, 1 to 1)
                     PieceType.Rook -> listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1)
                     else -> listOf(
@@ -187,8 +185,8 @@ fun isSquareAttacked(board: List<Piece?>, square: Int, by: PieceColor): Boolean 
                         -1 to 0, 1 to 0, 0 to -1, 0 to 1
                     )
                 }
-                for ((dr, dc) in dirs) {
-                    if (rayAttacks(board, i, square, dr, dc)) return true
+                for ((deltaRow, deltaCol) in dirs) {
+                    if (isSquareBeingRayAttacked(board, attackingSquare, attackedSquare, deltaRow, deltaCol)) return true
                 }
             }
         }
@@ -197,16 +195,15 @@ fun isSquareAttacked(board: List<Piece?>, square: Int, by: PieceColor): Boolean 
 }
 
 fun isInCheck(board: List<Piece?>, color: PieceColor): Boolean {
-    val kingSq = findKingSquare(board, color) ?: return false
-    val attacker = if (color == PieceColor.White) PieceColor.Black else PieceColor.White
-    return isSquareAttacked(board, kingSq, attacker)
+    val kingSquare = findKingSquare(board, color) ?: return false
+    val attackerColor = if (color == PieceColor.White) PieceColor.Black else PieceColor.White
+    return isSquareAttacked(board, kingSquare, attackerColor)
 }
 
 private fun pseudoMovesForPiece(
     from: Int,
     piece: Piece,
     board: List<Piece?>,
-    sideToMove: PieceColor,
     castlingRights: CastlingRights,
     enPassantTargetSquare: Int?
 ): List<Move> {
@@ -224,92 +221,98 @@ private fun pseudoMovesForPiece(
 }
 
 private fun knightPseudoMoves(from: Int, side: PieceColor, board: List<Piece?>): List<Move> {
-    val r = rowOf(from)
-    val c = colOf(from)
+    val currentRow = rowOf(from)
+    val currentCol = colOf(from)
     val deltas = listOf(-2 to -1, -2 to 1, -1 to -2, -1 to 2, 1 to -2, 1 to 2, 2 to -1, 2 to 1)
 
     val out = mutableListOf<Move>()
-    for ((dr, dc) in deltas) {
-        val nr = r + dr
-        val nc = c + dc
-        if (!inBounds(nr, nc)) continue
-        val to = idx(nr, nc)
-        val dest = board[to]
-        if (dest == null || dest.color != side) out.add(Move(from, to))
+    for ((deltaRow, deltaCol) in deltas) {
+        val newRow = currentRow + deltaRow
+        val newCol = currentCol + deltaCol
+        if (!inBounds(newRow, newCol)) continue
+        val destinationSquareIndex = idx(newRow, newCol)
+        val destinationSquarePiece = board[destinationSquareIndex]
+        if (destinationSquarePiece == null || destinationSquarePiece.color != side) out.add(Move(from, destinationSquareIndex))
     }
     return out
 }
 
-private fun kingPseudoMoves(from: Int, side: PieceColor, board: List<Piece?>, rights: CastlingRights): List<Move> {
-    val r = rowOf(from)
-    val c = colOf(from)
+private fun kingPseudoMoves(from: Int, sideToMove: PieceColor, board: List<Piece?>, castlingRights: CastlingRights): List<Move> {
+    val currentRow = rowOf(from)
+    val currentCol = colOf(from)
     val deltas = listOf(-1 to -1, -1 to 0, -1 to 1, 0 to -1, 0 to 1, 1 to -1, 1 to 0, 1 to 1)
 
     val out = mutableListOf<Move>()
-    for ((dr, dc) in deltas) {
-        val nr = r + dr
-        val nc = c + dc
-        if (!inBounds(nr, nc)) continue
-        val to = idx(nr, nc)
-        val dest = board[to]
-        if (dest == null || dest.color != side) out.add(Move(from, to))
+    for ((deltaRow, deltaCol) in deltas) {
+        val newRow = currentRow + deltaRow
+        val newCol = currentCol + deltaCol
+        if (!inBounds(newRow, newCol)) continue
+        val destinationSquareIndex = idx(newRow, newCol)
+        val destinationSquarePiece = board[destinationSquareIndex]
+        if (destinationSquarePiece == null || destinationSquarePiece.color != sideToMove) out.add(Move(from, destinationSquareIndex))
     }
 
-    // Add castling candidates (we'll enforce "through check" later in legalMovesForPiece)
-    if (side == PieceColor.White && from == idx(7, 4)) {
-        // King-side: squares f1,g1 empty and rook on h1
-        if (rights.whiteKingSide &&
+    val opponentColor = if (sideToMove == PieceColor.White) PieceColor.Black else PieceColor.White
+
+    if (sideToMove == PieceColor.White && from == idx(7, 4)) {
+        if (castlingRights.whiteKingSide &&
             board[idx(7, 5)] == null && board[idx(7, 6)] == null &&
             board[idx(7, 7)]?.type == PieceType.Rook && board[idx(7, 7)]?.color == PieceColor.White
+            && !isInCheck(board, sideToMove) &&
+            !areSquaresAttacked(board, opponentColor, listOf(idx(7, 5), idx(7, 6)))
         ) {
             out.add(Move(from, idx(7, 6), isCastleKingSide = true))
         }
-        // Queen-side: squares d1,c1,b1 empty and rook on a1
-        if (rights.whiteQueenSide &&
+        if (castlingRights.whiteQueenSide &&
             board[idx(7, 3)] == null && board[idx(7, 2)] == null && board[idx(7, 1)] == null &&
             board[idx(7, 0)]?.type == PieceType.Rook && board[idx(7, 0)]?.color == PieceColor.White
+            && !isInCheck(board, sideToMove) &&
+            !areSquaresAttacked(board, opponentColor, listOf(idx(7, 3), idx(7, 2)))
         ) {
             out.add(Move(from, idx(7, 2), isCastleQueenSide = true))
         }
     }
 
-    if (side == PieceColor.Black && from == idx(0, 4)) {
-        if (rights.blackKingSide &&
+    if (sideToMove == PieceColor.Black && from == idx(0, 4)) {
+        if (castlingRights.blackKingSide &&
             board[idx(0, 5)] == null && board[idx(0, 6)] == null &&
             board[idx(0, 7)]?.type == PieceType.Rook && board[idx(0, 7)]?.color == PieceColor.Black
+            && !isInCheck(board, sideToMove) &&
+            !areSquaresAttacked(board, opponentColor, listOf(idx(0, 5), idx(0, 6)))
         ) {
             out.add(Move(from, idx(0, 6), isCastleKingSide = true))
         }
-        if (rights.blackQueenSide &&
+        if (castlingRights.blackQueenSide &&
             board[idx(0, 3)] == null && board[idx(0, 2)] == null && board[idx(0, 1)] == null &&
             board[idx(0, 0)]?.type == PieceType.Rook && board[idx(0, 0)]?.color == PieceColor.Black
+            && !isInCheck(board, sideToMove)
+            && !areSquaresAttacked(board, opponentColor, listOf(idx(0, 3), idx(0, 2)))
         ) {
             out.add(Move(from, idx(0, 2), isCastleQueenSide = true))
         }
     }
-
     return out
 }
 
 private fun slidingPseudoMoves(from: Int, side: PieceColor, board: List<Piece?>, dirs: List<Pair<Int, Int>>): List<Move> {
-    val r0 = rowOf(from)
-    val c0 = colOf(from)
+    val currentRow = rowOf(from)
+    val currentCol = colOf(from)
     val out = mutableListOf<Move>()
 
-    for ((dr, dc) in dirs) {
-        var r = r0 + dr
-        var c = c0 + dc
-        while (inBounds(r, c)) {
-            val to = idx(r, c)
-            val dest = board[to]
-            if (dest == null) {
-                out.add(Move(from, to))
+    for ((deltaRow, deltaCol) in dirs) {
+        var newRow = currentRow + deltaRow
+        var newCol = currentCol + deltaCol
+        while (inBounds(newRow, newCol)) {
+            val destinationSquareIndex = idx(newRow, newCol)
+            val destinationSquarePiece = board[destinationSquareIndex]
+            if (destinationSquarePiece == null) {
+                out.add(Move(from, destinationSquareIndex))
             } else {
-                if (dest.color != side) out.add(Move(from, to))
+                if (destinationSquarePiece.color != side) out.add(Move(from, destinationSquareIndex))
                 break
             }
-            r += dr
-            c += dc
+            newRow += deltaRow
+            newCol += deltaCol
         }
     }
 
@@ -317,41 +320,41 @@ private fun slidingPseudoMoves(from: Int, side: PieceColor, board: List<Piece?>,
 }
 
 private fun pawnPseudoMoves(from: Int, side: PieceColor, board: List<Piece?>, epTarget: Int?): List<Move> {
-    val r = rowOf(from)
-    val c = colOf(from)
-    val dir = if (side == PieceColor.White) -1 else 1
+    val currentRow = rowOf(from)
+    val currentCol = colOf(from)
+    val direction = if (side == PieceColor.White) -1 else 1
     val startRow = if (side == PieceColor.White) 6 else 1
 
     val out = mutableListOf<Move>()
 
-    // forward 1
-    val oneR = r + dir
-    if (inBounds(oneR, c)) {
-        val one = idx(oneR, c)
-        if (board[one] == null) {
-            out.add(Move(from, one))
+    // Forward 1
+    val oneRowAfterStartRow = currentRow + direction
+    if (inBounds(oneRowAfterStartRow, currentCol)) {
+        val oneSquareAfterStartSquare = idx(oneRowAfterStartRow, currentCol)
+        if (board[oneSquareAfterStartSquare] == null) {
+            out.add(Move(from, oneSquareAfterStartSquare))
 
-            // forward 2
-            val twoR = r + 2 * dir
-            if (r == startRow && inBounds(twoR, c)) {
-                val two = idx(twoR, c)
-                if (board[two] == null) out.add(Move(from, two))
+            // Forward 2
+            val twoRowsAfterStartRow = currentRow + 2 * direction
+            if (currentRow == startRow && inBounds(twoRowsAfterStartRow, currentCol)) {
+                val twoSquaresAfterStartSquare = idx(twoRowsAfterStartRow, currentCol)
+                if (board[twoSquaresAfterStartSquare] == null) out.add(Move(from, twoSquaresAfterStartSquare))
             }
         }
     }
 
-    // diagonal captures + en passant
-    for (dc in listOf(-1, 1)) {
-        val rr = r + dir
-        val cc = c + dc
-        if (!inBounds(rr, cc)) continue
-        val to = idx(rr, cc)
+    // Diagonal captures and en passant
+    for (deltaCol in listOf(-1, 1)) {
+        val newRow = currentRow + direction
+        val newCol = currentCol + deltaCol
+        if (!inBounds(newRow, newCol)) continue
+        val diagonalSquareIndex = idx(newRow, newCol)
 
-        val dest = board[to]
-        if (dest != null && dest.color != side) {
-            out.add(Move(from, to))
-        } else if (epTarget != null && to == epTarget) {
-            out.add(Move(from, to, isEnPassant = true))
+        val diagonalSquarePiece = board[diagonalSquareIndex]
+        if (diagonalSquarePiece != null && diagonalSquarePiece.color != side) {
+            out.add(Move(from, diagonalSquareIndex))
+        } else if (epTarget != null && diagonalSquareIndex == epTarget) {
+            out.add(Move(from, diagonalSquareIndex, isEnPassant = true))
         }
     }
 
@@ -366,32 +369,14 @@ fun legalMovesForPiece(
     castlingRights: CastlingRights,
     enPassantTargetSquare: Int?
 ): List<Move> {
-    val pseudo = pseudoMovesForPiece(from, piece, board, sideToMove, castlingRights, enPassantTargetSquare)
-    val legal = mutableListOf<Move>()
+    val pseudoMoves = pseudoMovesForPiece(from, piece, board, castlingRights, enPassantTargetSquare)
+    val legalMoves = mutableListOf<Move>()
 
-    val opponent = if (sideToMove == PieceColor.White) PieceColor.Black else PieceColor.White
+    for (pseudoMove in pseudoMoves) {
 
-    for (m in pseudo) {
-        // Extra castling checks: can't castle out of check or through attacked squares
-        if (piece.type == PieceType.King && (m.isCastleKingSide || m.isCastleQueenSide)) {
-            if (isInCheck(board, sideToMove)) continue
-
-            val throughSquares = if (sideToMove == PieceColor.White) {
-                if (m.isCastleKingSide) listOf(idx(7, 5), idx(7, 6)) else listOf(idx(7, 3), idx(7, 2))
-            } else {
-                if (m.isCastleKingSide) listOf(idx(0, 5), idx(0, 6)) else listOf(idx(0, 3), idx(0, 2))
-            }
-
-            var ok = true
-            for (sq in throughSquares) {
-                if (isSquareAttacked(board, sq, opponent)) { ok = false; break }
-            }
-            if (!ok) continue
-        }
-
-        val applied = applyMoveWithRules(
+        val applied = applyMove(
             board = board,
-            move = m,
+            move = pseudoMove,
             sideToMove = sideToMove,
             castlingRights = castlingRights,
             enPassantTargetSquare = enPassantTargetSquare
@@ -399,11 +384,11 @@ fun legalMovesForPiece(
 
         // Must not leave your king in check
         if (!isInCheck(applied.board, sideToMove)) {
-            legal.add(m)
+            legalMoves.add(pseudoMove)
         }
     }
 
-    return legal
+    return legalMoves
 }
 
 fun hasAnyLegalMove(
@@ -416,6 +401,19 @@ fun hasAnyLegalMove(
         val piece = board[from] ?: continue
         if (piece.color != sideToMove) continue
         if (legalMovesForPiece(from, piece, board, sideToMove, castlingRights, enPassantTargetSquare).isNotEmpty()) {
+            return true
+        }
+    }
+    return false
+}
+
+private fun areSquaresAttacked(
+    board: List<Piece?>,
+    opponentColor: PieceColor,
+    neighbouringSquares: List<Int>
+): Boolean {
+    for (square in neighbouringSquares) {
+        if (isSquareAttacked(board, square, opponentColor)) {
             return true
         }
     }
