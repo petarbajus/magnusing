@@ -1,4 +1,4 @@
-package com.example.magnusing.ui.game
+package com.example.magnusing.ui.game.logic.model
 
 enum class PieceColor { White, Black }
 

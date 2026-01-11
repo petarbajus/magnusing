@@ -1,4 +1,8 @@
-package com.example.magnusing.ui.game
+package com.example.magnusing.ui.game.logic
+
+import com.example.magnusing.ui.game.logic.model.Piece
+import com.example.magnusing.ui.game.logic.model.PieceColor
+import com.example.magnusing.ui.game.logic.model.PieceType
 
 fun startingBoard(): List<Piece?> {
     // index = row * 8 + col, where row=0 is the top of the board
