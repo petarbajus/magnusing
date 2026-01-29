@@ -3,8 +3,10 @@ package com.example.magnusing.ui.game.logic
 import androidx.lifecycle.ViewModel
 import com.example.magnusing.ui.game.model.CastlingRights
 import com.example.magnusing.ui.game.model.GameUiState
+import com.example.magnusing.ui.game.model.Move
 import com.example.magnusing.ui.game.model.Piece
 import com.example.magnusing.ui.game.model.PieceColor
+import com.example.magnusing.ui.game.model.PieceType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -77,44 +79,16 @@ class GameViewModel : ViewModel() {
         // CASE 4: Attempt move -> must be legal and present in targetMoves
         val move = currentState.targetMoves[currentlySelectedSquare] ?: return
 
-        val apply = applyMove(
-            board = board,
-            move = move,
-            sideToMove = sideToMove,
-            castlingRights = currentState.castlingRights,
-            enPassantTargetSquare = currentState.enPassantTargetSquare
-        )
-
-        val nextSideToPlay = if (sideToMove == PieceColor.White) PieceColor.Black else PieceColor.White
-        val nextBoard = apply.board
-
-        // Determine game gameStatus for the side that is about to move
-        val inCheck = isInCheck(nextBoard, nextSideToPlay)
-
-        // IMPORTANT: hasAnyLegalMove must consider castling rights + ep target for the next player
-        val anyMoves = hasAnyLegalMove(
-            board = nextBoard,
-            sideToMove = nextSideToPlay,
-            castlingRights = apply.castlingRights,
-            enPassantTargetSquare = apply.enPassantTargetSquare
-        )
-
-        val gameStatus = when {
-            !anyMoves && inCheck -> GameStatus.Checkmate
-            !anyMoves && !inCheck -> GameStatus.Stalemate
-            inCheck -> GameStatus.Check
-            else -> GameStatus.Playing
+        if (move.isPromotion) {
+            _uiState.value = currentState.copy(
+                selectedSquare = null,
+                targetMoves = emptyMap(),
+                pendingPromotion = move
+            )
+            return
         }
 
-        _uiState.value = currentState.copy(
-            board = nextBoard,
-            selectedSquare = null,
-            targetMoves = emptyMap(),
-            sideToMove = nextSideToPlay,
-            castlingRights = apply.castlingRights,
-            enPassantTargetSquare = apply.enPassantTargetSquare,
-            gameStatus = gameStatus
-        )
+        commitMoveAndSetCurrentState(move)
     }
 
     fun newGame() {
@@ -156,4 +130,55 @@ class GameViewModel : ViewModel() {
         return gameStatus == GameStatus.Checkmate ||
                 gameStatus == GameStatus.Stalemate
     }
+
+    private fun commitMoveAndSetCurrentState(move: Move) {
+        val currentState = _uiState.value
+
+        val apply = applyMove(
+            board = currentState.board,
+            move = move,
+            sideToMove = currentState.sideToMove,
+            castlingRights = currentState.castlingRights,
+            enPassantTargetSquare = currentState.enPassantTargetSquare
+        )
+
+        val nextSideToPlay =
+            if (currentState.sideToMove == PieceColor.White) PieceColor.Black else PieceColor.White
+
+        val nextBoard = apply.board
+
+        val inCheck = isInCheck(nextBoard, nextSideToPlay)
+        val anyMoves = hasAnyLegalMove(
+            board = nextBoard,
+            sideToMove = nextSideToPlay,
+            castlingRights = apply.castlingRights,
+            enPassantTargetSquare = apply.enPassantTargetSquare
+        )
+
+        val gameStatus = when {
+            !anyMoves && inCheck -> GameStatus.Checkmate
+            !anyMoves && !inCheck -> GameStatus.Stalemate
+            inCheck -> GameStatus.Check
+            else -> GameStatus.Playing
+        }
+
+        _uiState.value = currentState.copy(
+            board = nextBoard,
+            selectedSquare = null,
+            targetMoves = emptyMap(),
+            sideToMove = nextSideToPlay,
+            castlingRights = apply.castlingRights,
+            enPassantTargetSquare = apply.enPassantTargetSquare,
+            gameStatus = gameStatus,
+            pendingPromotion = null
+        )
+    }
+
+    fun onPromotionChosen(pieceType: PieceType) {
+        val currentState = _uiState.value
+        val promotionMove = currentState.pendingPromotion ?: return
+        commitMoveAndSetCurrentState(promotionMove.copy(promotionPiece = pieceType))
+    }
+
+
 }

@@ -10,5 +10,6 @@ data class GameUiState(
     val targetMoves: Map<Int, Move> = emptyMap(),
     val gameStatus: GameStatus = GameStatus.Playing,
     val castlingRights: CastlingRights = CastlingRights(),
-    val enPassantTargetSquare: Int? = null
+    val enPassantTargetSquare: Int? = null,
+    val pendingPromotion: Move? = null
 )

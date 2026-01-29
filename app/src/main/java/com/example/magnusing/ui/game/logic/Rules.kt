@@ -17,7 +17,7 @@ fun applyMove(
     enPassantTargetSquare: Int?
 ): MoveResult {
     val newBoard = board.toMutableList()
-    val piece = newBoard[move.from] ?: return MoveResult(board, castlingRights, enPassantTargetSquare)
+    var piece = newBoard[move.from] ?: return MoveResult(board, castlingRights, enPassantTargetSquare)
 
     var nextEnPassantTargetSquare: Int? = null
     var nextCastlingRights = castlingRights
@@ -77,6 +77,12 @@ fun applyMove(
         newBoard[capturedPawnSquare] = null
 
         return MoveResult(newBoard, nextCastlingRights, nextEnPassantTargetSquare)
+    }
+
+    // PROMOTION : change the piece to be of type that is chosen by the user
+    val promotionPiece = move.promotionPiece ?: PieceType.Queen
+    if (move.isPromotion && piece.type == PieceType.Pawn) {
+        piece = Piece(promotionPiece, piece.color)
     }
 
     // Normal move (including normal captures)
@@ -324,21 +330,27 @@ private fun pawnPseudoMoves(from: Int, side: PieceColor, board: List<Piece?>, ep
     val currentCol = colOf(from)
     val direction = if (side == PieceColor.White) -1 else 1
     val startRow = if (side == PieceColor.White) 6 else 1
+    val endRow = if (side == PieceColor.White) 0 else 7
+
 
     val out = mutableListOf<Move>()
 
     // Forward 1
-    val oneRowAfterStartRow = currentRow + direction
-    if (inBounds(oneRowAfterStartRow, currentCol)) {
-        val oneSquareAfterStartSquare = idx(oneRowAfterStartRow, currentCol)
-        if (board[oneSquareAfterStartSquare] == null) {
-            out.add(Move(from, oneSquareAfterStartSquare))
+    val oneRowAfterCurrentRow = currentRow + direction
+    if (inBounds(oneRowAfterCurrentRow, currentCol)) {
+        val oneSquareAfterCurrentSquare = idx(oneRowAfterCurrentRow, currentCol)
+        val nextSquareFree = board[oneSquareAfterCurrentSquare] == null
+        if (nextSquareFree) {
+            val isPromotionMove = oneRowAfterCurrentRow == endRow
+            out.add(Move(from, oneSquareAfterCurrentSquare, isPromotion = isPromotionMove))
 
             // Forward 2
             val twoRowsAfterStartRow = currentRow + 2 * direction
             if (currentRow == startRow && inBounds(twoRowsAfterStartRow, currentCol)) {
                 val twoSquaresAfterStartSquare = idx(twoRowsAfterStartRow, currentCol)
-                if (board[twoSquaresAfterStartSquare] == null) out.add(Move(from, twoSquaresAfterStartSquare))
+                if (board[twoSquaresAfterStartSquare] == null) {
+                    out.add(Move(from, twoSquaresAfterStartSquare))
+                }
             }
         }
     }
@@ -352,7 +364,8 @@ private fun pawnPseudoMoves(from: Int, side: PieceColor, board: List<Piece?>, ep
 
         val diagonalSquarePiece = board[diagonalSquareIndex]
         if (diagonalSquarePiece != null && diagonalSquarePiece.color != side) {
-            out.add(Move(from, diagonalSquareIndex))
+            val isPromotionMove = newRow == endRow
+            out.add(Move(from, diagonalSquareIndex, isPromotion = isPromotionMove))
         } else if (epTarget != null && diagonalSquareIndex == epTarget) {
             out.add(Move(from, diagonalSquareIndex, isEnPassant = true))
         }
