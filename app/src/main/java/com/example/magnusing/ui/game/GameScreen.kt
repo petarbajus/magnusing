@@ -4,13 +4,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.magnusing.ui.game.engine.StockfishEngine
 import com.example.magnusing.ui.game.logic.GameViewModel
 import com.example.magnusing.ui.game.model.Piece
 import com.example.magnusing.ui.game.model.PieceColor
@@ -25,7 +26,20 @@ fun GameScreen(
     modifier: Modifier = Modifier,
     vm: GameViewModel = viewModel()
 ) {
-    val state = vm.uiState.collectAsState().value
+    val state by vm.uiState.collectAsState()
+    val context = LocalContext.current
+
+    // Initialize Stockfish once
+    LaunchedEffect(Unit) {
+        vm.initEngine(StockfishEngine(context))
+    }
+
+    // Stop engine when leaving screen
+    DisposableEffect(Unit) {
+        onDispose {
+            vm.stopEngine()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -33,7 +47,10 @@ fun GameScreen(
                 title = { Text("Game") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 }
             )
@@ -45,17 +62,18 @@ fun GameScreen(
                 .padding(padding),
             contentAlignment = Alignment.Center
         ) {
+
             ChessBoard(
                 board = state.board,
                 selectedSquare = state.selectedSquare,
                 legalTargets = state.targetMoves.keys,
-                onSquareClick = { vm.onSquareTapped(it) }
+                onSquareClick = vm::onSquareTapped
             )
 
-            if (state.pendingPromotion != null) {
+            if (state.pendingPromotionMove != null) {
                 PromotionDialog(
                     color = state.sideToMove,
-                    onPick = { vm.onPromotionChosen(it) }
+                    onPick = vm::onPromotionChosen
                 )
             }
         }
@@ -68,7 +86,7 @@ fun PromotionDialog(
     onPick: (PieceType) -> Unit
 ) {
     AlertDialog(
-        onDismissRequest = { /* prevent dismiss */ },
+        onDismissRequest = { /* block dismiss */ },
         title = { Text("Promote to") },
         text = {
             Row(
