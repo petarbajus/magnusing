@@ -22,16 +22,21 @@ import pieceToUnicode
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GameScreen(
-    onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onBackClick: () -> Unit,
+    playerColor: PieceColor = PieceColor.White,
     vm: GameViewModel = viewModel()
 ) {
     val state by vm.uiState.collectAsState()
     val context = LocalContext.current
+    val engine = remember(context) { StockfishEngine(context) }
 
-    // Initialize Stockfish once
-    LaunchedEffect(Unit) {
-        vm.initEngine(StockfishEngine(context))
+    LaunchedEffect(engine) {
+        vm.initEngine(engine)
+    }
+
+    LaunchedEffect(playerColor) {
+        vm.configureUiState(playerChoice = playerColor)
     }
 
     // Stop engine when leaving screen
@@ -67,7 +72,8 @@ fun GameScreen(
                 board = state.board,
                 selectedSquare = state.selectedSquare,
                 legalTargets = state.targetMoves.keys,
-                onSquareClick = vm::onSquareTapped
+                onSquareClick = vm::onSquareTapped,
+                perspective = state.playerColor
             )
 
             if (state.pendingPromotionMove != null) {

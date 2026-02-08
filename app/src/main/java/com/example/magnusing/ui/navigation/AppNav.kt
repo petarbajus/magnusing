@@ -13,7 +13,8 @@ import com.example.magnusing.ui.newgame.SideChoice
 private object Routes {
     const val HOME = "home"
     const val NEW_GAME = "new_game"
-    const val GAME = "game"
+
+    const val GAME = "game/{color}"
 }
 
 @Composable
@@ -35,15 +36,22 @@ fun AppNav() {
         composable(Routes.NEW_GAME) {
             NewGameScreen(
                 onBackClick = { navController.popBackStack() },
-                onPlayClick = { selected, side ->
-                    navController.navigate(Routes.GAME)
+                onPlayClick = { _, side ->
+                    val colorArg = if (side == com.example.magnusing.ui.game.model.PieceColor.White) "w" else "b"
+                    navController.navigate("game/$colorArg")
                 }
             )
         }
 
-        composable(Routes.GAME) {
+        composable(Routes.GAME) { backStackEntry ->
+            val colorArg = backStackEntry.arguments?.getString("color") ?: "w"
+            val playerColor =
+                if (colorArg == "b") com.example.magnusing.ui.game.model.PieceColor.Black
+                else com.example.magnusing.ui.game.model.PieceColor.White
+
             GameScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                playerColor = playerColor
             )
         }
 

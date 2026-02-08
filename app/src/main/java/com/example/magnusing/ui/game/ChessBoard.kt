@@ -23,9 +23,16 @@ fun ChessBoard(
     board: List<Piece?>,
     selectedSquare: Int?,
     legalTargets: Set<Int>,
+    perspective: PieceColor,
     onSquareClick: (index: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    fun toBoardIndex(displayRow: Int, displayCol: Int): Int =
+        if (perspective == PieceColor.White)
+            displayRow * 8 + displayCol
+        else
+            (7 - displayRow) * 8 + (7 - displayCol)
+
     // 8 rows x 8 columns
     Column(
         modifier = modifier
@@ -36,7 +43,7 @@ fun ChessBoard(
             Row(modifier = Modifier.weight(1f)) {
                 for (col in 0 until 8) {
                     val isLight = (row + col) % 2 == 0
-                    val index = row * 8 + col
+                    val index = toBoardIndex(row, col)
                     val isSelected = index == selectedSquare
                     val baseColor =
                         if (isLight) Color(0xFFEEEED2) else Color(0xFF769656)

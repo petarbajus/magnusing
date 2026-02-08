@@ -39,7 +39,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.magnusing.ui.game.model.PieceColor
 import com.example.magnusing.ui.theme.MagnusingTheme
+import kotlin.random.Random
 
 data class Opponent(
     val id: String,
@@ -56,7 +58,7 @@ enum class SideChoice { White, Random, Black }
 @Composable
 fun NewGameScreen(
     onBackClick: () -> Unit,
-    onPlayClick: (selected: Opponent, side: SideChoice) -> Unit,
+    onPlayClick: (selected: Opponent, selectedSide: PieceColor) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val bots = remember {
@@ -94,7 +96,15 @@ fun NewGameScreen(
             BottomControls(
                 sideChoice = sideChoice,
                 onSideChange = { sideChoice = it },
-                onPlay = { onPlayClick(selectedBot, sideChoice) }
+                onPlay = {
+                    val chosenColor = when (sideChoice) {
+                        SideChoice.White -> PieceColor.White
+                        SideChoice.Black -> PieceColor.Black
+                        SideChoice.Random ->
+                            if (Random.nextBoolean()) PieceColor.White else PieceColor.Black
+                    }
+                    onPlayClick(selectedBot, chosenColor)
+                }
             )
         }
     ) { padding ->
@@ -181,7 +191,6 @@ private fun SelectedBotHeader(bot: Opponent) {
                 )
             }
 
-            // Optional: show category on the right
             Text(
                 text = bot.category.name,
                 style = MaterialTheme.typography.labelLarge
@@ -271,7 +280,6 @@ private fun BottomControls(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Side selector: White / Random / Black
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             SegmentedButton(
                 selected = sideChoice == SideChoice.White,
@@ -292,7 +300,6 @@ private fun BottomControls(
             ) { Text("Black") }
         }
 
-        // Big Play button
         androidx.compose.material3.Button(
             onClick = onPlay,
             modifier = Modifier

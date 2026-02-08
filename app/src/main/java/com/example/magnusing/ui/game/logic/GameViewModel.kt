@@ -17,17 +17,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 enum class GameStatus { Playing, Check, Checkmate, Stalemate }
-
 class GameViewModel : ViewModel() {
-
+    private var isConfigured = false
     private val _uiState = MutableStateFlow(GameUiState())
-    val uiState: StateFlow<GameUiState> = _uiState
 
+    val uiState: StateFlow<GameUiState> = _uiState
     // --- Engine (Stockfish) integration ---
     private var engine: StockfishEngine? = null
     private var engineColor: PieceColor = PieceColor.Black
     private var playVsEngine: Boolean = true
     private var thinking: Boolean = false
+
     private var engineMoveTimeMs: Int = 400
 
     fun initEngine(stockfishEngine: StockfishEngine) {
@@ -217,6 +217,32 @@ class GameViewModel : ViewModel() {
         )
     }
 
+    fun configureUiState(
+        playerChoice: PieceColor,
+        vsEngine: Boolean = true
+    ) {
+        if (isConfigured) return
+        isConfigured = true
+
+        playVsEngine = vsEngine
+        engineColor =
+            if (playerChoice == PieceColor.White) PieceColor.Black else PieceColor.White
+
+        _uiState.value = _uiState.value.copy(
+            board = startingBoard(),           // canonical orientation
+            sideToMove = PieceColor.White,     // chess rule
+            selectedSquare = null,
+            targetMoves = emptyMap(),
+            gameStatus = GameStatus.Playing,
+            castlingRights = CastlingRights(),
+            enPassantTargetSquare = null,
+            pendingPromotionMove = null,
+            playerColor = playerChoice
+        )
+
+        // If engine is White, it moves immediately
+        maybeMakeEngineMove()
+    }
     private fun maybeMakeEngineMove() {
         val s = _uiState.value
         val eng = engine ?: return
