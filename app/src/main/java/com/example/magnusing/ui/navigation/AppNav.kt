@@ -1,25 +1,34 @@
 package com.example.magnusing.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.magnusing.ui.game.GameScreen
+import com.example.magnusing.ui.game.model.PieceColor
 import com.example.magnusing.ui.home.HomeScreen
+import com.example.magnusing.ui.newgame.Category
 import com.example.magnusing.ui.newgame.NewGameScreen
 import com.example.magnusing.ui.newgame.Opponent
-import com.example.magnusing.ui.newgame.SideChoice
+import com.example.magnusing.R
+import com.example.magnusing.ui.newgame.OpponentsData
 
 private object Routes {
     const val HOME = "home"
     const val NEW_GAME = "new_game"
 
-    const val GAME = "game/{color}"
+    // ✅ now includes opponentId
+    const val GAME = "game/{color}/{opponentId}"
+
+    fun game(color: String, opponentId: String) = "game/$color/$opponentId"
 }
 
 @Composable
 fun AppNav() {
     val navController = rememberNavController()
+    val opponents = OpponentsData.all
 
     NavHost(
         navController = navController,
@@ -36,24 +45,33 @@ fun AppNav() {
         composable(Routes.NEW_GAME) {
             NewGameScreen(
                 onBackClick = { navController.popBackStack() },
-                onPlayClick = { _, side ->
-                    val colorArg = if (side == com.example.magnusing.ui.game.model.PieceColor.White) "w" else "b"
-                    navController.navigate("game/$colorArg")
+                onPlayClick = { opponent, side ->
+                    val colorArg = if (side == PieceColor.White) "w" else "b"
+                    navController.navigate(Routes.game(colorArg, opponent.id))
                 }
             )
         }
 
-        composable(Routes.GAME) { backStackEntry ->
+        composable(
+            route = Routes.GAME,
+            arguments = listOf(
+                navArgument("color") { type = NavType.StringType },
+                navArgument("opponentId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
             val colorArg = backStackEntry.arguments?.getString("color") ?: "w"
-            val playerColor =
-                if (colorArg == "b") com.example.magnusing.ui.game.model.PieceColor.Black
-                else com.example.magnusing.ui.game.model.PieceColor.White
+            val opponentId = backStackEntry.arguments?.getString("opponentId") ?: "trump"
+
+            val playerColor = if (colorArg == "b") PieceColor.Black else PieceColor.White
+
+            // ✅ lookup opponent by id (fallback to first)
+            val opponent = opponents.firstOrNull { it.id == opponentId } ?: opponents.first()
 
             GameScreen(
+                opponent = opponent,
                 onBackClick = { navController.popBackStack() },
                 playerColor = playerColor
             )
         }
-
     }
 }

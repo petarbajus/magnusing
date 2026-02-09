@@ -51,13 +51,6 @@ import com.example.magnusing.ui.game.model.PieceColor
 import com.example.magnusing.ui.theme.MagnusingTheme
 import kotlin.random.Random
 
-data class Opponent(
-    val id: String,
-    val name: String,
-    val elo: Int,
-    val category: Category,
-    @DrawableRes val avatarRes: Int
-)
 
 enum class Category { Beginner, Intermediate, Hard }
 enum class SideChoice { White, Random, Black }
@@ -69,35 +62,12 @@ fun NewGameScreen(
     onPlayClick: (selected: Opponent, selectedSide: PieceColor) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val bots = remember {
-        listOf(
-            Opponent(
-                id = "trump",
-                name = "Donald Trump",
-                elo = 400,
-                category = Category.Beginner,
-                avatarRes = R.drawable.donald_trump
-            ),
-            Opponent(
-                id = "musk",
-                name = "Elon Musk",
-                elo = 1200,
-                category = Category.Intermediate,
-                avatarRes = R.drawable.elon_musk
-            ),
-            Opponent(
-                id = "cent",
-                name = "50 Cent",
-                elo = 2200,
-                category = Category.Hard,
-                avatarRes = R.drawable.cent_50
-            )
-        )
-    }
+
+    val bots = OpponentsData.all
 
     val beginner = bots.filter { it.category == Category.Beginner }
     val intermediate = bots.filter { it.category == Category.Intermediate }
-    val hard = bots.filter { it.category == Category.Hard }
+    val hard = bots.filter { it.category == Category.Hard}
 
     var selectedBot by remember { mutableStateOf(bots.first()) }
     var sideChoice by remember { mutableStateOf(SideChoice.Random) }
