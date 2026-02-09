@@ -1,5 +1,7 @@
 package com.example.magnusing.ui.newgame
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,6 +10,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -37,8 +42,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.magnusing.R
 import com.example.magnusing.ui.game.model.PieceColor
 import com.example.magnusing.ui.theme.MagnusingTheme
 import kotlin.random.Random
@@ -47,11 +55,11 @@ data class Opponent(
     val id: String,
     val name: String,
     val elo: Int,
-    val category: Category
+    val category: Category,
+    @DrawableRes val avatarRes: Int
 )
 
 enum class Category { Beginner, Intermediate, Hard }
-
 enum class SideChoice { White, Random, Black }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,14 +71,27 @@ fun NewGameScreen(
 ) {
     val bots = remember {
         listOf(
-            Opponent("rookie", "Rookie Bot", 400, Category.Beginner),
-            Opponent("pawnpal", "Pawn Pal", 600, Category.Beginner),
-
-            Opponent("tactics", "Tactics Bot", 1000, Category.Intermediate),
-            Opponent("solid", "Solid Bot", 1200, Category.Intermediate),
-
-            Opponent("crusher", "Crusher Bot", 1600, Category.Hard),
-            Opponent("endgame", "Endgame Bot", 1900, Category.Hard),
+            Opponent(
+                id = "trump",
+                name = "Donald Trump",
+                elo = 400,
+                category = Category.Beginner,
+                avatarRes = R.drawable.donald_trump
+            ),
+            Opponent(
+                id = "musk",
+                name = "Elon Musk",
+                elo = 1200,
+                category = Category.Intermediate,
+                avatarRes = R.drawable.elon_musk
+            ),
+            Opponent(
+                id = "cent",
+                name = "50 Cent",
+                elo = 2200,
+                category = Category.Hard,
+                avatarRes = R.drawable.cent_50
+            )
         )
     }
 
@@ -115,9 +136,7 @@ fun NewGameScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item {
-                SelectedBotHeader(bot = selectedBot)
-            }
+            item { SelectedBotHeader(bot = selectedBot) }
 
             item {
                 BotSection(
@@ -146,7 +165,6 @@ fun NewGameScreen(
                 )
             }
 
-            // Extra space so last row isn't hidden behind bottom controls
             item { Spacer(Modifier.height(90.dp)) }
         }
     }
@@ -164,19 +182,14 @@ private fun SelectedBotHeader(bot: Opponent) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Default avatar
-            Box(
+            Image(
+                painter = painterResource(id = bot.avatarRes),
+                contentDescription = "${bot.name} avatar",
                 modifier = Modifier
                     .size(54.dp)
                     .clip(RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Bot avatar",
-                    modifier = Modifier.size(30.dp)
-                )
-            }
+                contentScale = ContentScale.Crop
+            )
 
             Spacer(Modifier.width(12.dp))
 
@@ -240,7 +253,7 @@ private fun BotCard(
             containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer
             else MaterialTheme.colorScheme.surfaceVariant
         ),
-        modifier = Modifier.size(width = 92.dp, height = 110.dp)
+        modifier = Modifier.size(width = 120.dp, height = 120.dp)
     ) {
         Column(
             modifier = Modifier
@@ -249,10 +262,13 @@ private fun BotCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = "Bot",
-                modifier = Modifier.size(36.dp)
+            Image(
+                painter = painterResource(id = bot.avatarRes),
+                contentDescription = bot.name,
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop
             )
             Spacer(Modifier.height(8.dp))
             Text(
@@ -277,9 +293,11 @@ private fun BottomControls(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
+            .imePadding()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    )  {
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             SegmentedButton(
                 selected = sideChoice == SideChoice.White,
@@ -300,7 +318,7 @@ private fun BottomControls(
             ) { Text("Black") }
         }
 
-        androidx.compose.material3.Button(
+        Button(
             onClick = onPlay,
             modifier = Modifier
                 .fillMaxWidth()
@@ -316,6 +334,7 @@ private fun BottomControls(
 @Composable
 fun NewGameScreenPreview() {
     MagnusingTheme {
+        // Preview will work even if drawables exist; if not, it will fail at render time.
         NewGameScreen(
             onBackClick = {},
             onPlayClick = { _, _ -> }

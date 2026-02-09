@@ -1,22 +1,35 @@
 package com.example.magnusing.ui.game
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.min
+import kotlin.math.min
 import com.example.magnusing.ui.game.model.Piece
 import com.example.magnusing.ui.game.model.PieceColor
-import com.example.magnusing.ui.game.model.PieceType
-import pieceToUnicode
+import pieceToDrawableRes
 
 @Composable
 fun ChessBoard(
@@ -33,61 +46,104 @@ fun ChessBoard(
         else
             (7 - displayRow) * 8 + (7 - displayCol)
 
-    // 8 rows x 8 columns
-    Column(
-        modifier = modifier
-            .size(360.dp), // temporary fixed size; we’ll make it responsive later
-        verticalArrangement = Arrangement.spacedBy(0.dp)
-    ) {
-        for (row in 0 until 8) {
-            Row(modifier = Modifier.weight(1f)) {
-                for (col in 0 until 8) {
-                    val isLight = (row + col) % 2 == 0
-                    val index = toBoardIndex(row, col)
-                    val isSelected = index == selectedSquare
-                    val baseColor =
-                        if (isLight) Color(0xFFEEEED2) else Color(0xFF769656)
-                    val squareColor =
-                        if (isSelected) Color(0xFFFFF176) else baseColor
+    // ✅ Classic chess palette: warm light + green dark
+    val lightSquare = Color(0xFFF0EAD6) // parchment
+    val darkSquare = Color(0xFF4F6F52)  // muted green
 
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .background(squareColor)
-                            .clickable { onSquareClick(index) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val piece = board[index]
-                        val isTarget = index in legalTargets
+    // Selection highlight (neutral, works on both squares)
+    val selectedOverlay = Color(0xFFB8C1B1)
 
-                        if (isTarget && piece == null) {
-                            Box(
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0x55000000))
-                            )
-                        }
+    // Subtle grid lines so tiles are separated (helps readability)
+    val gridLine = Color.Black.copy(alpha = 0.10f)
 
-                        if (isTarget && piece != null) {
-                            Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(CircleShape)
-                                    .border(
-                                        width = 2.dp,
-                                        color = Color(0x88000000),
-                                        shape = CircleShape
-                                    )
-                            )
-                        }
+    // Target markers (adaptive to square color)
+    val markerOnLight = Color.Black.copy(alpha = 0.35f)
+    val markerOnDark = Color.White.copy(alpha = 0.45f)
 
-                        if (piece != null) {
-                            Text(
-                                text = pieceToUnicode(piece),
-                                style = MaterialTheme.typography.headlineMedium
-                            )
+    BoxWithConstraints(modifier = modifier) {
+        val boardSize = min(this.maxWidth, this.maxHeight)
+
+        Card(
+            modifier = Modifier.size(boardSize),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            // Frame padding inside the card
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(10.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(
+                        width = 1.dp,
+                        color = Color.Black.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    for (row in 0 until 8) {
+                        Row(modifier = Modifier.weight(1f)) {
+                            for (col in 0 until 8) {
+                                val isLight = (row + col) % 2 == 0
+                                val index = toBoardIndex(row, col)
+                                val isSelected = index == selectedSquare
+
+                                val baseColor = if (isLight) lightSquare else darkSquare
+                                val squareColor = if (isSelected) selectedOverlay else baseColor
+                                val markerColor = if (isLight) markerOnLight else markerOnDark
+
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .background(squareColor)
+                                        .border(0.5.dp, gridLine)
+                                        .clickable { onSquareClick(index) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    val piece = board[index]
+                                    val isTarget = index in legalTargets
+
+                                    // Legal move markers (always visible now)
+                                    if (isTarget && piece == null) {
+                                        // Dot with outline for maximum contrast
+                                        Box(
+                                            modifier = Modifier
+                                                .size(14.dp)
+                                                .clip(CircleShape)
+                                                .background(markerColor)
+                                                .border(
+                                                    width = 1.dp,
+                                                    color = markerColor.copy(alpha = 0.6f),
+                                                    shape = CircleShape
+                                                )
+                                        )
+                                    }
+
+                                    if (isTarget && piece != null) {
+                                        // Capture ring
+                                        Box(
+                                            modifier = Modifier
+                                                .size(50.dp)
+                                                .clip(CircleShape)
+                                                .border(2.dp, markerColor, CircleShape)
+                                        )
+                                    }
+
+                                    // Piece image
+                                    if (piece != null) {
+                                        Image(
+                                            painter = painterResource(id = pieceToDrawableRes(piece)),
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(6.dp),
+                                            contentScale = ContentScale.Fit
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
