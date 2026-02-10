@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.magnusing.R
 import com.example.magnusing.ui.game.engine.StockfishEngine
+import com.example.magnusing.ui.game.logic.GameStatus
 import com.example.magnusing.ui.game.logic.GameViewModel
 import com.example.magnusing.ui.game.model.Piece
 import com.example.magnusing.ui.game.model.PieceColor
@@ -41,8 +43,38 @@ fun GameScreen(
     val context = LocalContext.current
     val engine = remember(context) { StockfishEngine(context) }
 
+    var showGameOverDialog by rememberSaveable { mutableStateOf(false) }
+    var gameOverMessage by rememberSaveable { mutableStateOf("") }
+
+    LaunchedEffect(state.gameStatus) {
+        if (showGameOverDialog) return@LaunchedEffect
+
+        when (state.gameStatus) {
+            GameStatus.Checkmate -> {
+                // In your VM, after committing a move, sideToMove becomes the side that has to move next.
+                // If it's checkmate, the side to move is the loser.
+                val playerLost = (state.sideToMove == state.playerColor)
+                gameOverMessage =
+                    if (playerLost) "You lost to ${opponent.name}"
+                    else "You won against ${opponent.name}"
+                showGameOverDialog = true
+            }
+
+            GameStatus.Stalemate -> {
+                gameOverMessage = "You drew with ${opponent.name}"
+                showGameOverDialog = true
+            }
+
+            else -> Unit
+        }
+    }
+
     LaunchedEffect(engine) {
         vm.initEngine(engine)
+    }
+
+    LaunchedEffect(opponent.id) {
+        vm.setOpponent(opponent)
     }
 
     LaunchedEffect(playerColor) {
@@ -55,8 +87,7 @@ fun GameScreen(
 
     var showQuitDialog by remember { mutableStateOf(false) }
 
-    // Intercept system back
-    BackHandler(enabled = true) {
+    BackHandler(enabled = !showGameOverDialog) {
         showQuitDialog = true
     }
 
@@ -65,7 +96,7 @@ fun GameScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Game") },
                 navigationIcon = {
-                    IconButton(onClick = { showQuitDialog = true }) {
+                    IconButton(onClick = { if (!showGameOverDialog) showQuitDialog = true }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
@@ -104,6 +135,22 @@ fun GameScreen(
                 )
             }
 
+            if (showGameOverDialog) {
+                AlertDialog(
+                    onDismissRequest = { /* force explicit back */ },
+                    title = { Text("Game Over") },
+                    text = { Text(gameOverMessage) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showGameOverDialog = false
+                                onBackClick() // ✅ back to NewGameScreen
+                            }
+                        ) { Text("Back") }
+                    }
+                )
+            }
+
             if (showQuitDialog) {
                 AlertDialog(
                     onDismissRequest = { showQuitDialog = false },
@@ -115,9 +162,12 @@ fun GameScreen(
                         TextButton(
                             onClick = {
                                 showQuitDialog = false
+                                vm.resign()
                                 onBackClick()
                             }
-                        ) { Text("Quit") }
+                        ) {
+                            Text("Quit")
+                        }
                     },
                     dismissButton = {
                         TextButton(onClick = { showQuitDialog = false }) {

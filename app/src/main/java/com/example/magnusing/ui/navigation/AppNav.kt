@@ -64,7 +64,6 @@ fun AppNav() {
 
             val playerColor = if (colorArg == "b") PieceColor.Black else PieceColor.White
 
-            // ✅ lookup opponent by id (fallback to first)
             val opponent = opponents.firstOrNull { it.id == opponentId } ?: opponents.first()
 
             GameScreen(

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "634926677343",
+    "project_id": "magnusing-chess",
+    "storage_bucket": "magnusing-chess.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:634926677343:android:c8c1492fd3d5cc1af2caea",
+        "android_client_info": {
+          "package_name": "com.example.magnusing"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4bHsX6Nno34b-l5RVhVzUnfvJyf9JGnE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

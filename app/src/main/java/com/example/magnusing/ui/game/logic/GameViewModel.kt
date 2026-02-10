@@ -1,16 +1,19 @@
 package com.example.magnusing.ui.game.logic
 
+import ChessRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.magnusing.ui.game.engine.StockfishEngine
 import com.example.magnusing.ui.game.engine.toFen
 import com.example.magnusing.ui.game.engine.uciToMove
 import com.example.magnusing.ui.game.model.CastlingRights
+import com.example.magnusing.ui.game.model.GameResult
 import com.example.magnusing.ui.game.model.GameUiState
 import com.example.magnusing.ui.game.model.Move
 import com.example.magnusing.ui.game.model.Piece
 import com.example.magnusing.ui.game.model.PieceColor
 import com.example.magnusing.ui.game.model.PieceType
+import com.example.magnusing.ui.newgame.Opponent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,16 +21,20 @@ import kotlinx.coroutines.launch
 
 enum class GameStatus { Playing, Check, Checkmate, Stalemate }
 class GameViewModel : ViewModel() {
-    private var isConfigured = false
     private val _uiState = MutableStateFlow(GameUiState())
-
     val uiState: StateFlow<GameUiState> = _uiState
+
+    private var isConfigured = false
+    private val repo = ChessRepository()
+
+    private var opponent: Opponent? = null
+    private var resultRecorded: Boolean = false
+
     // --- Engine (Stockfish) integration ---
     private var engine: StockfishEngine? = null
     private var engineColor: PieceColor = PieceColor.Black
     private var playVsEngine: Boolean = true
     private var thinking: Boolean = false
-
     private var engineMoveTimeMs: Int = 400
 
     fun initEngine(stockfishEngine: StockfishEngine) {
@@ -205,6 +212,36 @@ class GameViewModel : ViewModel() {
             else -> GameStatus.Playing
         }
 
+        if (!resultRecorded && (gameStatus == GameStatus.Checkmate || gameStatus == GameStatus.Stalemate)) {
+            resultRecorded = true
+
+            val opp = opponent
+            if (opp != null) {
+                val player = _uiState.value.playerColor // playerColor is stored in uiState
+
+                val result = when (gameStatus) {
+                    GameStatus.Stalemate -> GameResult.DRAW
+                    GameStatus.Checkmate -> {
+                        // In your code, checkmate is detected for `nextSideToPlay` (the side who is to move but has no moves and is in check).
+                        // So the winner is the opposite of nextSideToPlay.
+                        val winner = if (nextSideToPlay == PieceColor.White) PieceColor.Black else PieceColor.White
+                        if (winner == player) GameResult.WIN else GameResult.LOSS
+                    }
+                    else -> GameResult.DRAW // not used
+                }
+
+                viewModelScope.launch {
+                    runCatching {
+                        repo.recordGameFinished(
+                            opponent = opp,
+                            playerColor = player,
+                            result = result
+                        )
+                    }
+                }
+            }
+        }
+
         _uiState.value = currentState.copy(
             board = nextBoard,
             selectedSquare = null,
@@ -224,6 +261,10 @@ class GameViewModel : ViewModel() {
         if (isConfigured) return
         isConfigured = true
 
+        resultRecorded = false
+        viewModelScope.launch {
+            repo.ensureStateExists()
+        }
         playVsEngine = vsEngine
         engineColor =
             if (playerChoice == PieceColor.White) PieceColor.Black else PieceColor.White
@@ -243,6 +284,25 @@ class GameViewModel : ViewModel() {
         // If engine is White, it moves immediately
         maybeMakeEngineMove()
     }
+
+    fun resign() {
+        if (resultRecorded) return
+        resultRecorded = true
+        val opp = opponent ?: return
+        val player = _uiState.value.playerColor
+
+        viewModelScope.launch {
+            runCatching {
+                repo.recordGameFinished(opp, player, GameResult.LOSS)
+            }
+        }
+    }
+
+    fun setOpponent(selected: Opponent) {
+        opponent = selected
+        engineMoveTimeMs = selected.engineMoveTimeMs
+    }
+
     private fun maybeMakeEngineMove() {
         val s = _uiState.value
         val eng = engine ?: return
