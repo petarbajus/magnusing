@@ -1,5 +1,6 @@
 package com.example.magnusing.ui.game
 
+import ChessRepository
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -128,6 +129,12 @@ fun GameScreen(
                     .aspectRatio(1f)
             )
 
+            Spacer(Modifier.height(12.dp))
+
+            PlayerHeader()
+
+            Spacer(Modifier.height(12.dp))
+
             if (state.pendingPromotionMove != null) {
                 PromotionDialog(
                     color = state.sideToMove,
@@ -179,6 +186,65 @@ fun GameScreen(
         }
     }
 }
+
+@Composable
+fun PlayerHeader(
+    modifier: Modifier = Modifier,
+    repo: ChessRepository = ChessRepository()
+) {
+    // Hard-coded identity
+    val username = "Magnus"
+    val avatarRes = R.drawable.steve_jobs
+
+    // ✅ Fetch ELO from Firestore
+    val eloState by produceState<Int?>(initialValue = null) {
+        value = try {
+            repo.fetchCurrentElo()
+        } catch (_: Throwable) {
+            1200
+        }
+    }
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(id = avatarRes),
+                contentDescription = username,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop
+            )
+
+            Spacer(Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = username,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "${eloState ?: "…"} ELO",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            Text(
+                text = "YOU",
+                style = MaterialTheme.typography.labelMedium
+            )
+        }
+    }
+}
+
 
 @Composable
 private fun OpponentHeader(opponent: Opponent) {
@@ -271,7 +337,8 @@ fun GameScreenPreview() {
                 name = "Magnus Bot",
                 elo = 2800,
                 category = Category.Hard,
-                avatarRes = R.drawable.elon_musk
+                avatarRes = R.drawable.elon_musk,
+                engineMoveTimeMs = 400
             ),
             onBackClick = {}
         )

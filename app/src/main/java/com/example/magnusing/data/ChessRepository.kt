@@ -1,8 +1,11 @@
 import com.example.magnusing.ui.game.model.GameResult
 import com.example.magnusing.ui.newgame.Opponent
 import com.example.magnusing.ui.game.model.PieceColor
+import com.example.magnusing.ui.history.GameHistoryItem
+import com.example.magnusing.ui.history.toGameHistoryItem
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
 
 
@@ -91,5 +94,20 @@ class ChessRepository(
                 )
             )
         }.await()
+    }
+
+    suspend fun fetchRecentGames(limit: Long = 50): List<GameHistoryItem> {
+        val snap = gamesCol
+            .orderBy("endedAt", Query.Direction.DESCENDING)
+            .limit(limit)
+            .get()
+            .await()
+
+        return snap.documents.map { it.toGameHistoryItem() }
+    }
+
+    suspend fun fetchCurrentElo(): Int {
+        val snap = stateRef.get().await()
+        return (snap.getLong("elo") ?: 1200L).toInt()
     }
 }

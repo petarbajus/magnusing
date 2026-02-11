@@ -5,7 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -23,22 +23,21 @@ import androidx.compose.ui.unit.dp
 
 enum class BottomNavItem {
     HOME,
-    MORE
+    HISTORY
 }
 
 @Composable
 fun BottomNavBar(
     selectedItem: BottomNavItem,
     onHomeClick: () -> Unit,
-    onMoreClick: () -> Unit
+    onHistoryClick: () -> Unit
 ) {
     Surface(color = Color.Black) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding() // ✅ avoids gesture-nav cut-off
+                .navigationBarsPadding()
         ) {
-            // Retro “device line”
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -49,7 +48,7 @@ fun BottomNavBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 76.dp) // ✅ enough room for icon + label
+                    .heightIn(min = 76.dp)
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -68,15 +67,15 @@ fun BottomNavBar(
                 )
 
                 RetroNavItem(
-                    selected = selectedItem == BottomNavItem.MORE,
-                    label = "MORE",
+                    selected = selectedItem == BottomNavItem.HISTORY,
+                    label = "GAME HISTORY",
                     icon = {
                         Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = "More"
+                            imageVector = Icons.Default.SportsEsports,
+                            contentDescription = "Game History"
                         )
                     },
-                    onClick = onMoreClick,
+                    onClick = onHistoryClick,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -97,7 +96,7 @@ private fun RetroNavItem(
 
     Column(
         modifier = modifier
-            .height(56.dp) // ✅ prevents label from getting squeezed
+            .height(56.dp)
             .clip(RoundedCornerShape(6.dp))
             .background(bg)
             .clickable(onClick = onClick)

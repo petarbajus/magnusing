@@ -8,20 +8,19 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.magnusing.ui.game.GameScreen
 import com.example.magnusing.ui.game.model.PieceColor
+import com.example.magnusing.ui.history.GameHistoryScreen
 import com.example.magnusing.ui.home.HomeScreen
-import com.example.magnusing.ui.newgame.Category
 import com.example.magnusing.ui.newgame.NewGameScreen
-import com.example.magnusing.ui.newgame.Opponent
-import com.example.magnusing.R
 import com.example.magnusing.ui.newgame.OpponentsData
+import com.example.magnusing.ui.profile.UserProfileScreen
 
 private object Routes {
     const val HOME = "home"
     const val NEW_GAME = "new_game"
+    const val HISTORY = "history"
+    const val USER_PROFILE = "user_profile" // ✅ MUST match navigate("user_profile")
 
-    // ✅ now includes opponentId
     const val GAME = "game/{color}/{opponentId}"
-
     fun game(color: String, opponentId: String) = "game/$color/$opponentId"
 }
 
@@ -37,8 +36,26 @@ fun AppNav() {
         composable(Routes.HOME) {
             HomeScreen(
                 onPlayClick = { navController.navigate(Routes.NEW_GAME) },
-                onMoreClick = { /* TODO */ },
-                onUserClick = { /* TODO */ }
+                onHistoryClick = { navController.navigate(Routes.HISTORY) },
+                onUserClick = { navController.navigate(Routes.USER_PROFILE) } // ✅
+            )
+        }
+
+        composable(Routes.HISTORY) {
+            GameHistoryScreen(
+                onHomeClick = {
+                    navController.navigate(Routes.HOME) {
+                        launchSingleTop = true
+                        popUpTo(Routes.HOME) { inclusive = true }
+                    }
+                },
+                onUserClick = { navController.navigate(Routes.USER_PROFILE) } // ✅
+            )
+        }
+
+        composable(Routes.USER_PROFILE) {
+            UserProfileScreen(
+                onBackClick = { navController.popBackStack() } // ✅
             )
         }
 
@@ -60,10 +77,9 @@ fun AppNav() {
             )
         ) { backStackEntry ->
             val colorArg = backStackEntry.arguments?.getString("color") ?: "w"
-            val opponentId = backStackEntry.arguments?.getString("opponentId") ?: "trump"
+            val opponentId = backStackEntry.arguments?.getString("opponentId") ?: opponents.first().id
 
             val playerColor = if (colorArg == "b") PieceColor.Black else PieceColor.White
-
             val opponent = opponents.firstOrNull { it.id == opponentId } ?: opponents.first()
 
             GameScreen(
