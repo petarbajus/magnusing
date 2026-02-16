@@ -15,6 +15,3 @@ captures/
 # macOS
 .DS_Store
 
-# Drawable resources
-app/src/main/res/drawable*/
-
