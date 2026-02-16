@@ -15,9 +15,6 @@ class StockfishEngine(private val context: Context) {
     private var output: BufferedReader? = null
 
     private fun enginePathInNativeLibDir(): String {
-        // You packaged the Stockfish *executable* as:
-        // app/src/main/jniLibs/arm64-v8a/libstockfish.so
-        // so it will be extracted here at install time:
         val libDir = context.applicationInfo.nativeLibraryDir
         return "$libDir/libstockfish.so"
     }

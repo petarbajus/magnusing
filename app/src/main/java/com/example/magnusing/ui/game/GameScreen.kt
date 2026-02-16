@@ -52,8 +52,6 @@ fun GameScreen(
 
         when (state.gameStatus) {
             GameStatus.Checkmate -> {
-                // In your VM, after committing a move, sideToMove becomes the side that has to move next.
-                // If it's checkmate, the side to move is the loser.
                 val playerLost = (state.sideToMove == state.playerColor)
                 gameOverMessage =
                     if (playerLost) "You lost to ${opponent.name}"

@@ -18,7 +18,7 @@ private object Routes {
     const val HOME = "home"
     const val NEW_GAME = "new_game"
     const val HISTORY = "history"
-    const val USER_PROFILE = "user_profile" // ✅ MUST match navigate("user_profile")
+    const val USER_PROFILE = "user_profile" // MUST match navigate("user_profile")
 
     const val GAME = "game/{color}/{opponentId}"
     fun game(color: String, opponentId: String) = "game/$color/$opponentId"
@@ -37,7 +37,7 @@ fun AppNav() {
             HomeScreen(
                 onPlayClick = { navController.navigate(Routes.NEW_GAME) },
                 onHistoryClick = { navController.navigate(Routes.HISTORY) },
-                onUserClick = { navController.navigate(Routes.USER_PROFILE) } // ✅
+                onUserClick = { navController.navigate(Routes.USER_PROFILE) } //
             )
         }
 
@@ -49,13 +49,13 @@ fun AppNav() {
                         popUpTo(Routes.HOME) { inclusive = true }
                     }
                 },
-                onUserClick = { navController.navigate(Routes.USER_PROFILE) } // ✅
+                onUserClick = { navController.navigate(Routes.USER_PROFILE) }
             )
         }
 
         composable(Routes.USER_PROFILE) {
             UserProfileScreen(
-                onBackClick = { navController.popBackStack() } // ✅
+                onBackClick = { navController.popBackStack() }
             )
         }
 

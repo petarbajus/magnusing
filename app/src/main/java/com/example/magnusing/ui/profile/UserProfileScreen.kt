@@ -30,7 +30,7 @@ fun UserProfileScreen(
     val username = "Magnus"
     val avatarRes = R.drawable.steve_jobs
 
-    // ✅ Fetch ELO from Firestore
+    // Fetch ELO from Firestore
     val eloState by produceState<Int?>(initialValue = null) {
         value = try {
             repo.fetchCurrentElo()

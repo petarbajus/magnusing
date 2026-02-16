@@ -46,7 +46,7 @@ fun ChessBoard(
         else
             (7 - displayRow) * 8 + (7 - displayCol)
 
-    // ✅ Classic chess palette: warm light + green dark
+    // Classic chess palette: warm light + green dark
     val lightSquare = Color(0xFFF0EAD6) // parchment
     val darkSquare = Color(0xFF4F6F52)  // muted green
 
